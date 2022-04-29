@@ -19,7 +19,7 @@ const Whois = () => {
   const [wallets, setWallets] = useState()
   const [contracts, setContracts] = useState<string[]>(['', '', ''])
   const [inputAddress, setInputAddress] = useState<string>('')
-  const [inputSymbol, setInputSymbol] = useState<string>('')
+  const [inputSymbol, setInputSymbol] = useState<string>()
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<boolean>(false)
   const [message, setMessage] = useState<string>('Error 1')
@@ -63,16 +63,24 @@ const Whois = () => {
     return res.data.data.rates.ETH
   }
   const displayContract = async () => {
-    const token = await getTokenInfo(inputSymbol)
     setLoading(true)
     setError(false)
-
-    if (token && inputAddress) {
-      const provider = await getProvider()
+    const provider = await getProvider()
+    let contractInfo = []
+    setContracts(['', '', ''])
+    if (!inputAddress) {
+      setLoading(false)
+      setError(true)
+      setMessage('Error with the address')
+    }
+    if (inputSymbol) {
+      const token = await getTokenInfo(inputSymbol)
       try {
-        const contract = await new ethers.Contract(token.address, ABI, provider)
-        const contractInfo = []
-        const contractName = await contract.name()
+        const contract = await new ethers.Contract(
+          token!.address,
+          ABI,
+          provider
+        )
         const contractSymbol = await contract.symbol()
         const contractBalance = await contract.balanceOf(inputAddress)
         const formattedContractBalance = ethers.utils.formatUnits(
@@ -80,27 +88,26 @@ const Whois = () => {
           18
         )
 
-        const balance = await provider?.getBalance(inputAddress)
-        const ETHperUSD = await getETHPerUSD()
-        const formattedEtherBlance = ethers.utils.formatEther(balance!)
-        const ETHinUSD = Number(formattedEtherBlance) / Number(ETHperUSD)
-
-        contractInfo.push(contractName)
         contractInfo.push(contractSymbol)
         contractInfo.push(formattedContractBalance)
+        setContracts(contractInfo)
+      } catch (error) {
+        setMessage(String(error))
+      }
+    } else {
+      try {
+        const ETHBalance = await provider?.getBalance(inputAddress)
+        const ETHperUSD = await getETHPerUSD()
+        const formattedEtherBlance = ethers.utils.formatEther(ETHBalance!)
+        const ETHinUSD = Number(formattedEtherBlance) / Number(ETHperUSD)
         contractInfo.push(formattedEtherBlance)
         contractInfo.push(ETHinUSD.toLocaleString())
         setContracts(contractInfo)
       } catch (error) {
         setMessage(String(error))
       }
-      setLoading(false)
-      setError(false)
-    } else {
-      setError(true)
-      setMessage('Invalid value')
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   const handleSubmit = async (event: any) => {
@@ -133,8 +140,8 @@ const Whois = () => {
         <select
           className="text-black"
           onChange={(e) => setInputSymbol(e.target.value)}
-          value="DAI"
         >
+          <option value="">ETH</option>
           <option value="DAI">DAI</option>
           <option value="ZRX">ZRX</option>
           <option value="USDT">USDT</option>
@@ -144,10 +151,18 @@ const Whois = () => {
           <div>Searching...</div>
         ) : (
           <div>
-            <p>Token: {contracts![0]}</p>
-            <p>Balance: {contracts![2]}</p>
-            <p>Ether Balance: {contracts![3]}</p>
-            <p>USD Conversion $: {contracts![4]}</p>
+            {inputSymbol ? (
+              <div>
+                {' '}
+                <p>Token: {contracts![0]}</p>
+                <p>Balance: {contracts![1]}</p>
+              </div>
+            ) : (
+              <div>
+                <p>Ether Balance: {contracts![0]}</p>
+                <p>In USD $: {contracts![1]}</p>
+              </div>
+            )}
           </div>
         )}
 
