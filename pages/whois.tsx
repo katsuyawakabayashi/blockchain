@@ -58,9 +58,11 @@ const Whois = () => {
       }
     }
   }
-  const getETHPerUSD = async () => {
+  const getPricePerUSD = async (symbol: string) => {
     const res = await axios.get('https://api.coinbase.com/v2/exchange-rates')
-    return res.data.data.rates.ETH
+    const rates = res.data.data.rates
+    const pricePerUSD = await rates[symbol]
+    return pricePerUSD
   }
   const displayContract = async () => {
     setLoading(true)
@@ -81,15 +83,13 @@ const Whois = () => {
           ABI,
           provider
         )
-        const contractSymbol = await contract.symbol()
-        const contractBalance = await contract.balanceOf(inputAddress)
-        const formattedContractBalance = ethers.utils.formatUnits(
-          contractBalance,
-          18
-        )
+        const tokenBalance = await contract.balanceOf(inputAddress)
+        const formattedTokenBalance = ethers.utils.formatUnits(tokenBalance, 18)
+        const tokenPerUSD = await getPricePerUSD(inputSymbol!)
+        const tokenInUSD = Number(formattedTokenBalance) / Number(tokenPerUSD)
 
-        contractInfo.push(contractSymbol)
-        contractInfo.push(formattedContractBalance)
+        contractInfo.push(formattedTokenBalance)
+        contractInfo.push(tokenInUSD.toLocaleString())
         setContracts(contractInfo)
       } catch (error) {
         setMessage(String(error))
@@ -97,7 +97,7 @@ const Whois = () => {
     } else {
       try {
         const ETHBalance = await provider?.getBalance(inputAddress)
-        const ETHperUSD = await getETHPerUSD()
+        const ETHperUSD = await getPricePerUSD('ETH')
         const formattedEtherBlance = ethers.utils.formatEther(ETHBalance!)
         const ETHinUSD = Number(formattedEtherBlance) / Number(ETHperUSD)
         contractInfo.push(formattedEtherBlance)
@@ -117,7 +117,7 @@ const Whois = () => {
 
   return (
     <div className="relative flex h-screen  flex-col items-center gap-10 bg-gray-900 p-10 text-white">
-      <span className="absolute right-5 top-5 rounded-xl bg-blue-700 p-2 shadow-xl hover:bg-blue-800">
+      <span className="absolute right-5 bottom-5 rounded-xl bg-blue-700 p-2 shadow-xl hover:bg-blue-800">
         {wallets ? (
           <div>
             <p className="w-48 truncate">Connected: {wallets}</p>
@@ -154,8 +154,10 @@ const Whois = () => {
             {inputSymbol ? (
               <div>
                 {' '}
-                <p>Token: {contracts![0]}</p>
-                <p>Balance: {contracts![1]}</p>
+                <p>
+                  {inputSymbol} Balance: {contracts![0]}
+                </p>
+                <p>In USD $: {contracts![1]}</p>
               </div>
             ) : (
               <div>
