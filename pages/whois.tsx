@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { ethers } from 'ethers'
+import axios from 'axios'
 import { getTokenInfo } from 'erc20-token-list'
+import { ethers } from 'ethers'
 
 const ABI = [
   // Some details about the token
@@ -57,6 +58,10 @@ const Whois = () => {
       }
     }
   }
+  const getETHPerUSD = async () => {
+    const res = await axios.get('https://api.coinbase.com/v2/exchange-rates')
+    return res.data.data.rates.ETH
+  }
   const displayContract = async () => {
     const token = await getTokenInfo(inputSymbol)
     setLoading(true)
@@ -75,14 +80,16 @@ const Whois = () => {
           18
         )
 
-        // If account balance is 1 ETH
         const balance = await provider?.getBalance(inputAddress)
+        const ETHperUSD = await getETHPerUSD()
         const formattedEtherBlance = ethers.utils.formatEther(balance!)
+        const ETHinUSD = Number(formattedEtherBlance) / Number(ETHperUSD)
 
         contractInfo.push(contractName)
         contractInfo.push(contractSymbol)
         contractInfo.push(formattedContractBalance)
         contractInfo.push(formattedEtherBlance)
+        contractInfo.push(ETHinUSD.toLocaleString())
         setContracts(contractInfo)
       } catch (error) {
         setMessage(String(error))
@@ -126,8 +133,8 @@ const Whois = () => {
         <select
           className="text-black"
           onChange={(e) => setInputSymbol(e.target.value)}
+          value="DAI"
         >
-          <option value=""></option>
           <option value="DAI">DAI</option>
           <option value="ZRX">ZRX</option>
           <option value="USDT">USDT</option>
@@ -140,6 +147,7 @@ const Whois = () => {
             <p>Token: {contracts![0]}</p>
             <p>Balance: {contracts![2]}</p>
             <p>Ether Balance: {contracts![3]}</p>
+            <p>USD Conversion $: {contracts![4]}</p>
           </div>
         )}
 
